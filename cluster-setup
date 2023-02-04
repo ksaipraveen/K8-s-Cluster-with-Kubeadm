@@ -8,7 +8,6 @@ Run the below commands in all instances
 
 #### Commands to run on all the nodes
 
-```
 # Switch to root user
 sudo su
 
@@ -73,7 +72,6 @@ sudo systemctl enable containerd
 systemctl daemon-reload
 systemctl start kubelet
 systemctl enable kubelet.service
-```
 
 ### On Master Node
 kubeadm init
