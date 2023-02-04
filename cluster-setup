@@ -1,12 +1,5 @@
-## Setting up three node Kubernetes cluster from scratch
 
-Spinup three ubuntu 18.04 AWS EC2 Instances.
-
-### SSH into all the instances
-
-Run the below commands in all instances
-
-#### Commands to run on all the nodes
+#Commands to run on all the nodes
 
 # Switch to root user
 sudo su
