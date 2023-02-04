@@ -1,0 +1,101 @@
+## Setting up three node Kubernetes cluster from scratch
+
+Spinup three ubuntu 18.04 AWS EC2 Instances.
+
+### SSH into all the instances
+
+Run the below commands in all instances
+
+#### Commands to run on all the nodes
+
+```
+# Switch to root user
+sudo su
+
+# Turn off Swap
+swapoff -a
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+# update packages and their version
+sudo apt-get update && sudo apt-get upgrade -y
+
+# install curl and apt-transport-https
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+
+# add key to verify releases
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+# add kubernetes apt repo
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+
+# install kubelet, kubeadm, kubectl and containerd
+sudo apt-get update
+### on Master Node
+sudo apt-get install -y kubelet kubeadm kubectl containerd
+### on Worker Node
+sudo apt-get install -y kubelet kubeadm containerd
+
+# apt-mark hold is used so that these packages will not be updated/removed automatically
+sudo apt-mark hold kubelet kubeadm kubectl containerd
+
+# Configure necessary modules for Containerd
+cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
+overlay
+br_netfilter
+EOF
+
+modprobe overlay
+modprobe br_netfilter
+
+# Setup required Kernel Parameters
+
+cat <<EOF | sudo tee /etc/sysctl.d/kubernetesconf
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward = 1
+EOF
+
+sysctl --system
+
+# Configure Containerd
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update
+sudo apt install -y containerd.io
+mkdir -p /etc/containerd
+containerd config default>/etc/containerd/config.toml
+sudo systemctl restart containerd
+sudo systemctl enable containerd
+
+# Start and Enable Kubelte
+systemctl daemon-reload
+systemctl start kubelet
+systemctl enable kubelet.service
+```
+
+### On Master Node
+kubeadm init
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Check Kubectl 
+kubectl get pods -o wide -n kube-system
+
+# Adding Calcio Network
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+# To get Token
+kubeadm token create --print-join-command
+
+### On Worker Node
+kubeadm token create --print-join-command
+
+# Deploy a Sample Application
+kubectl run nginx-demo --image=nginx --port=80
+kubectl expose pod nginx-demo --port=80 --target-port=80 --type=NodePort
+
+
